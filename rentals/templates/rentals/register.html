@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Sign Up - Bike Rental</title>
+    <style>
+        body { background-color: #f8f9fa; }
+        .register-card { max-width: 450px; margin: 50px auto; border-radius: 15px; }
+        .terms-box { 
+            height: 100px; 
+            overflow-y: scroll; 
+            font-size: 0.75rem; 
+            background: #eee; 
+            padding: 10px; 
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container p-3">
+        <div class="card register-card shadow p-4">
+            <h3 class="text-center mb-4">Student Registration</h3>
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger p-2 small">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    {{ form.as_p }}
+                </div>
+
+                <p class="small fw-bold mb-1">Liability Waiver & Rules:</p>
+                <div class="terms-box">
+                    1. The rider agrees to wear a helmet at all times.<br>
+                    2. The university is not liable for injuries sustained during the rental.<br>
+                    3. Any damage to the bike is the financial responsibility of the student.<br>
+                    4. Bikes must be returned to the designated station.<br>
+                    5. Theft of the bike will result in immediate disciplinary action.
+                </div>
+
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" name="terms_accepted" id="terms" required>
+                    <label class="form-check-label small" for="terms">
+                        I agree to the Terms and Conditions and accept full liability.
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Register & Start Riding</button>
+            </form>
+            
+            <p class="text-center mt-3 small">Already registered? <a href="{% url 'login' %}">Login here</a></p>
+        </div>
+    </div>
+</body>
+</html>
