@@ -8,33 +8,49 @@
     <style>
         body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .card { border-radius: 15px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .status-badge { font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 50px; }
-        #video, #photo-preview { width: 100%; border-radius: 10px; background-color: #000; }
-        .timer-display { font-size: 2.5rem; font-weight: bold; color: #0d6efd; }
+        #video, #photo-preview { width: 100%; border-radius: 10px; background-color: #000; transform: scaleX(-1); }
+        .timer-display { font-size: 3rem; font-weight: bold; color: #0d6efd; letter-spacing: 2px; }
+        .btn-pill { border-radius: 50px; padding: 10px 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <nav class="navbar navbar-dark bg-primary mb-4">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="#">🚲 RideNow</a>
-        <span class="navbar-text text-white">Hello, {{ user.username }}</span>
+        <a class="navbar-brand fw-bold" href="{% url 'dashboard' %}">🚲 RideNow University</a>
+        <div class="d-flex align-items-center">
+            <a href="{% url 'profile' %}" class="text-white me-3 text-decoration-none">Hi, {{ user.username }}</a>
+            <form action="{% url 'logout' %}" method="post" class="m-0">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-light">Logout</button>
+            </form>
+        </div>
     </div>
 </nav>
 
 <div class="container">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
     <div class="row">
-        <div class="col-md-6 mb-4">
+        <div class="col-md-7 mb-4">
             {% if active_rental %}
-                <div class="card p-4 text-center">
-                    <h4 class="text-muted">Current Ride</h4>
-                    <div class="timer-display" id="timer">00:00:00</div>
-                    <p class="mb-3">Started at: {{ active_rental.start_time|date:"H:i" }}</p>
+                <div class="card p-5 text-center">
+                    <h5 class="text-muted text-uppercase">Active Ride: Bike {{ active_rental.bike.bike_number }}</h5>
+                    <div class="timer-display my-4" id="timer">00:00:00</div>
+                    <p class="text-muted">Started at: {{ active_rental.start_time|date:"H:i" }}</p>
                     
-                    <form action="{% url 'stop_ride' %}" method="POST">
+                    <form action="{% url 'dashboard' %}" method="POST">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-danger btn-lg w-100 rounded-pill fw-bold">
-                            🔴 End Ride & Pay
+                        <input type="hidden" name="action" value="stop">
+                        <button type="submit" class="btn btn-danger btn-lg w-100 btn-pill">
+                            🛑 End Ride & View Receipt
                         </button>
                     </form>
                 </div>
@@ -42,66 +58,77 @@
                 <div class="card p-4">
                     <h4 class="fw-bold mb-3">Start a New Ride</h4>
                     
-                    <div class="alert alert-info py-2">
-                        <strong>Available Bikes:</strong> {{ available_bikes_count }}
+                    <div class="alert alert-info py-2 d-flex justify-content-between align-items-center">
+                        <span>Available Bikes at Station:</span>
+                        <span class="badge bg-primary fs-6">{{ available_bikes_count }}</span>
                     </div>
 
-                    <form action="{% url 'start_ride' %}" method="POST" id="rental-form">
+                    <form action="{% url 'dashboard' %}" method="POST" id="rental-form">
                         {% csrf_token %}
+                        <input type="hidden" name="action" value="start">
                         
                         <div class="mb-3">
-                            <label class="form-label fw-bold">1. Live Photo Verification</label>
-                            <div id="camera-box">
+                            <label class="form-label fw-bold">Step 1: Live Photo Verification</label>
+                            <div id="camera-container" class="position-relative">
                                 <video id="video" autoplay playsinline></video>
                                 <canvas id="canvas" width="400" height="300" class="d-none"></canvas>
                                 <img id="photo-preview" class="d-none">
                                 <input type="hidden" name="captured_image" id="captured_image_data" required>
                                 
                                 <div class="mt-2 d-grid gap-2">
-                                    <button type="button" id="snap" class="btn btn-dark btn-sm">📸 Capture Photo</button>
-                                    <button type="button" id="retake" class="btn btn-outline-secondary btn-sm d-none">🔄 Retake</button>
+                                    <button type="button" id="snap" class="btn btn-dark btn-sm">📸 Capture My Face</button>
+                                    <button type="button" id="retake" class="btn btn-outline-secondary btn-sm d-none">🔄 Retake Photo</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">2. National ID</label>
-                            <input type="text" name="national_id" class="form-control" placeholder="Enter ID Number" required>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">National ID</label>
+                                <input type="text" name="national_id" class="form-control" placeholder="ID Number" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Reg Number</label>
+                                <input type="text" name="reg_number" class="form-control" placeholder="S13/XXXXX/XX" required>
+                            </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">3. Reg Number</label>
-                            <input type="text" name="reg_number" class="form-control" placeholder="Enter University Reg No." required>
-                        </div>
-
-                        <button type="submit" id="submit-btn" class="btn btn-success btn-lg w-100 rounded-pill fw-bold" disabled>
-                            🚀 Unlock Bike
+                        <button type="submit" id="submit-btn" class="btn btn-success btn-lg w-100 btn-pill mt-3" disabled>
+                            🔓 Unlock Bike
                         </button>
                     </form>
                 </div>
             {% endif %}
         </div>
 
-        <div class="col-md-6">
-            <div class="card p-4 mb-4">
-                <h5 class="fw-bold">My Stats</h5>
-                <hr>
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Total Rides:</span>
-                    <span class="fw-bold">{{ user.rentals.count }}</span>
+        <div class="col-md-5">
+            <div class="card p-4 mb-4 bg-white">
+                <h5 class="fw-bold mb-3">Quick Actions</h5>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'leaderboard' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        🏆 Monthly Leaderboard
+                        <span class="badge bg-warning text-dark">Top 10</span>
+                    </a>
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">
+                        📜 My Ride History
+                    </a>
                 </div>
-                <a href="{% url 'leaderboard' %}" class="btn btn-outline-primary btn-sm w-100 mt-2">🏆 View Leaderboard</a>
             </div>
 
-            <div class="text-center mt-5">
-                <a href="{% url 'logout' %}" class="text-muted text-decoration-none">Logout Account</a>
+            {% if last_rental %}
+            <div class="card p-4 border-primary">
+                <h6 class="text-primary fw-bold">Last Trip Summary</h6>
+                <p class="small mb-1">Bike: {{ last_rental.bike.bike_number }}</p>
+                <p class="small mb-2">Cost: <strong>KES {{ last_rental.total_cost }}</strong></p>
+                <a href="{% url 'receipt' last_rental.id %}" class="btn btn-sm btn-outline-primary">View Full Receipt</a>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <script>
-    // --- CAMERA LOGIC ---
+    // --- CAMERA ENGINE ---
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const snap = document.getElementById('snap');
@@ -111,10 +138,12 @@
     const submitBtn = document.getElementById('submit-btn');
 
     {% if not active_rental %}
+    // Access webcam
     navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => { video.srcObject = stream; })
-        .catch(err => { alert("Camera access is required to rent a bike."); });
+        .catch(err => { alert("Please enable camera access to verify your identity."); });
 
+    // Snap photo
     snap.addEventListener("click", () => {
         const context = canvas.getContext('2d');
         context.drawImage(video, 0, 0, 400, 300);
@@ -127,9 +156,10 @@
         video.classList.add('d-none');
         snap.classList.add('d-none');
         retake.classList.remove('d-none');
-        submitBtn.disabled = false; // Enable "Unlock" button only after photo
+        submitBtn.disabled = false; // Enable unlock button only after photo
     });
 
+    // Retake photo
     retake.addEventListener("click", () => {
         preview.classList.add('d-none');
         video.classList.remove('d-none');
@@ -140,25 +170,31 @@
     });
     {% endif %}
 
-    // --- LIVE TIMER LOGIC ---
+    // --- LIVE RIDE TIMER ---
     {% if active_rental %}
-    const startTime = new Date("{{ active_rental.start_time|date:'Y-m-d H:i:s' }}").getTime();
-    
-    setInterval(() => {
-        const now = new Date().getTime();
-        const distance = now - startTime;
+    function startTimer() {
+        // Correcting for Python's ISO format for JS consumption
+        const startTimeStr = "{{ active_rental.start_time.isoformat }}";
+        const startTime = new Date(startTimeStr).getTime();
+        
+        setInterval(() => {
+            const now = new Date().getTime();
+            const distance = now - startTime;
 
-        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            const hours = Math.floor(distance / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-        document.getElementById("timer").innerHTML = 
-            (hours < 10 ? "0" + hours : hours) + ":" + 
-            (minutes < 10 ? "0" + minutes : minutes) + ":" + 
-            (seconds < 10 ? "0" + seconds : seconds);
-    }, 1000);
+            document.getElementById("timer").innerHTML = 
+                (hours < 10 ? "0" + hours : hours) + ":" + 
+                (minutes < 10 ? "0" + minutes : minutes) + ":" + 
+                (seconds < 10 ? "0" + seconds : seconds);
+        }, 1000);
+    }
+    startTimer();
     {% endif %}
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
