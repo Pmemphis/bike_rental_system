@@ -3,138 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <title>RideNow - Student Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
-        .main-card { max-width: 450px; margin: 20px auto; border-radius: 20px; border: none; }
-        .btn-start { background: #0d6efd; padding: 15px; font-weight: bold; border-radius: 12px; color: white; border: none; }
-        .btn-stop { background: #dc3545; padding: 15px; font-weight: bold; border-radius: 12px; color: white; border: none; }
-        .timer-box { font-size: 2.8rem; font-weight: bold; color: #0d6efd; margin: 5px 0; }
-        .cost-estimate { color: #198754; font-size: 1.4rem; font-weight: 700; }
-        .whatsapp-btn { background-color: #25D366; color: white; font-weight: 600; }
-        .progress { height: 8px; border-radius: 10px; }
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border-radius: 15px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .status-badge { font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 50px; }
+        #video, #photo-preview { width: 100%; border-radius: 10px; background-color: #000; }
+        .timer-display { font-size: 2.5rem; font-weight: bold; color: #0d6efd; }
     </style>
 </head>
 <body>
 
-<div class="container p-3">
-    <div class="card main-card shadow-lg p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="fw-bold mb-0 text-primary">🚲 RideNow</h2>
-            <div class="d-flex gap-1">
-                <a href="{% url 'profile' %}" class="btn btn-sm btn-outline-primary">Account</a>
-                <a href="https://wa.me/254741189878?text=Help%20needed%20at%20station" target="_blank" class="btn btn-sm whatsapp-btn">Help</a>
-                <form action="{% url 'logout' %}" method="post" class="m-0">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-secondary">Logout</button>
-                </form>
-            </div>
-        </div>
+<nav class="navbar navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#">🚲 RideNow</a>
+        <span class="navbar-text text-white">Hello, {{ user.username }}</span>
+    </div>
+</nav>
 
-        <p class="text-muted small mb-3">Hello, <strong>{{ request.user.username }}</strong></p>
-
-        <div class="p-3 bg-light rounded-4 mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="small fw-bold text-secondary text-uppercase">Station Status</span>
-                <span class="badge {% if bikes_remaining > 0 %}bg-success{% else %}bg-danger{% endif %}">
-                    {{ bikes_remaining }} Bikes Available
-                </span>
-            </div>
-            <div class="progress">
-                <div class="progress-bar {% if bikes_remaining > 3 %}bg-success{% elif bikes_remaining > 0 %}bg-warning{% else %}bg-danger{% endif %}" 
-                     role="progressbar" 
-                     style="width: {% widthratio bikes_remaining 10 100 %}%">
-                </div>
-            </div>
-        </div>
-
-        <hr>
-
-        {% if active_rental %}
-            <div class="text-center py-3">
-                <div class="badge bg-warning text-dark mb-2 px-3 py-2">RIDE IN PROGRESS</div>
-                <div class="timer-box" id="timer">00:00:00</div>
-                <div class="cost-estimate mb-4">KES <span id="live-cost">0.00</span></div>
-
-                <form method="POST">
-                    {% csrf_token %}
-                    <button type="submit" name="action" value="stop" class="btn btn-stop w-100 shadow mb-3">
-                        STOP & END RIDE
-                    </button>
-                </form>
-
-                <a href="https://wa.me/254741189878?text=Issue%20with%20Bike%20Reg:%20{{ active_rental.uni_reg_number }}" 
-                   class="text-danger small fw-bold text-decoration-none">
-                   ⚠ Report Mechanical Issue
-                </a>
-            </div>
-
-            <script>
-                const startTime = new Date("{{ active_rental.start_time|date:'Y-m-d H:i:s' }}").getTime();
-                
-                function updateRideUI() {
-                    const now = new Date().getTime();
-                    const diff = now - startTime;
-
-                    const h = Math.floor(diff / 3600000);
-                    const m = Math.floor((diff % 3600000) / 60000);
-                    const s = Math.floor((diff % 60000) / 1000);
-
-                    document.getElementById('timer').innerText = 
-                        (h < 10 ? "0"+h : h) + ":" + (m < 10 ? "0"+m : m) + ":" + (s < 10 ? "0"+s : s);
-
-                    // Rate: 70 per hour (calculated per second for fairness)
-                    const cost = (diff / 3600000) * 70;
-                    document.getElementById('live-cost').innerText = cost.toFixed(2);
-                }
-                setInterval(updateRideUI, 1000);
-                updateRideUI();
-            </script>
-
-        {% else %}
-            {% if last_rental %}
-                <div class="alert alert-success border-0 shadow-sm text-center mb-4 py-3">
-                    <h6 class="fw-bold mb-1">Ride Completed!</h6>
-                    <p class="mb-2">Charge: <strong>KES {{ last_rental.total_cost }}</strong></p>
-                    <a href="{% url 'receipt' last_rental.id %}" class="btn btn-sm btn-success px-4">Digital Receipt</a>
-                </div>
-            {% endif %}
-
-            <div class="text-center">
-                {% if bikes_remaining > 0 %}
-                    <p class="mb-4 text-secondary small">Enter details to unlock a bike.</p>
-                    <form method="POST">
+<div class="container">
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            {% if active_rental %}
+                <div class="card p-4 text-center">
+                    <h4 class="text-muted">Current Ride</h4>
+                    <div class="timer-display" id="timer">00:00:00</div>
+                    <p class="mb-3">Started at: {{ active_rental.start_time|date:"H:i" }}</p>
+                    
+                    <form action="{% url 'stop_ride' %}" method="POST">
                         {% csrf_token %}
-                        <div class="mb-3 text-start">
-                            <label class="form-label small fw-bold">National ID Number</label>
-                            <input type="text" name="national_id" class="form-control" placeholder="ID Number" required>
-                        </div>
-                        <div class="mb-4 text-start">
-                            <label class="form-label small fw-bold">University Reg Number</label>
-                            <input type="text" name="reg_no" class="form-control" placeholder="Registration Number" required>
-                        </div>
-                        <button type="submit" name="action" value="start" class="btn btn-start w-100 shadow">
-                            START NEW RIDE
+                        <button type="submit" class="btn btn-danger btn-lg w-100 rounded-pill fw-bold">
+                            🔴 End Ride & Pay
                         </button>
                     </form>
-                {% else %}
-                    <div class="py-4">
-                        <h1 class="display-1">🚫</h1>
-                        <h5 class="text-danger fw-bold">Station Empty</h5>
-                        <p class="text-muted small">All bikes are currently in use. Please wait for a return.</p>
-                    </div>
-                {% endif %}
-                
-                <div class="mt-4 text-muted" style="font-size: 0.8rem;">
-                    Billing Rate: <strong>KES 70.00 per hour</strong>
                 </div>
+            {% else %}
+                <div class="card p-4">
+                    <h4 class="fw-bold mb-3">Start a New Ride</h4>
+                    
+                    <div class="alert alert-info py-2">
+                        <strong>Available Bikes:</strong> {{ available_bikes_count }}
+                    </div>
+
+                    <form action="{% url 'start_ride' %}" method="POST" id="rental-form">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">1. Live Photo Verification</label>
+                            <div id="camera-box">
+                                <video id="video" autoplay playsinline></video>
+                                <canvas id="canvas" width="400" height="300" class="d-none"></canvas>
+                                <img id="photo-preview" class="d-none">
+                                <input type="hidden" name="captured_image" id="captured_image_data" required>
+                                
+                                <div class="mt-2 d-grid gap-2">
+                                    <button type="button" id="snap" class="btn btn-dark btn-sm">📸 Capture Photo</button>
+                                    <button type="button" id="retake" class="btn btn-outline-secondary btn-sm d-none">🔄 Retake</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">2. National ID</label>
+                            <input type="text" name="national_id" class="form-control" placeholder="Enter ID Number" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">3. Reg Number</label>
+                            <input type="text" name="reg_number" class="form-control" placeholder="Enter University Reg No." required>
+                        </div>
+
+                        <button type="submit" id="submit-btn" class="btn btn-success btn-lg w-100 rounded-pill fw-bold" disabled>
+                            🚀 Unlock Bike
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-6">
+            <div class="card p-4 mb-4">
+                <h5 class="fw-bold">My Stats</h5>
+                <hr>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total Rides:</span>
+                    <span class="fw-bold">{{ user.rentals.count }}</span>
+                </div>
+                <a href="{% url 'leaderboard' %}" class="btn btn-outline-primary btn-sm w-100 mt-2">🏆 View Leaderboard</a>
             </div>
-        {% endif %}
+
+            <div class="text-center mt-5">
+                <a href="{% url 'logout' %}" class="text-muted text-decoration-none">Logout Account</a>
+            </div>
+        </div>
     </div>
-    
-    <p class="text-center text-muted small mt-4">Powered by NextGen Sytems Limited &copy; 2026</p>
 </div>
+
+<script>
+    // --- CAMERA LOGIC ---
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const snap = document.getElementById('snap');
+    const retake = document.getElementById('retake');
+    const preview = document.getElementById('photo-preview');
+    const imgDataInput = document.getElementById('captured_image_data');
+    const submitBtn = document.getElementById('submit-btn');
+
+    {% if not active_rental %}
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => { video.srcObject = stream; })
+        .catch(err => { alert("Camera access is required to rent a bike."); });
+
+    snap.addEventListener("click", () => {
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, 400, 300);
+        const dataURL = canvas.toDataURL('image/jpeg');
+        
+        imgDataInput.value = dataURL;
+        preview.src = dataURL;
+        
+        preview.classList.remove('d-none');
+        video.classList.add('d-none');
+        snap.classList.add('d-none');
+        retake.classList.remove('d-none');
+        submitBtn.disabled = false; // Enable "Unlock" button only after photo
+    });
+
+    retake.addEventListener("click", () => {
+        preview.classList.add('d-none');
+        video.classList.remove('d-none');
+        snap.classList.remove('d-none');
+        retake.classList.add('d-none');
+        imgDataInput.value = "";
+        submitBtn.disabled = true;
+    });
+    {% endif %}
+
+    // --- LIVE TIMER LOGIC ---
+    {% if active_rental %}
+    const startTime = new Date("{{ active_rental.start_time|date:'Y-m-d H:i:s' }}").getTime();
+    
+    setInterval(() => {
+        const now = new Date().getTime();
+        const distance = now - startTime;
+
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        document.getElementById("timer").innerHTML = 
+            (hours < 10 ? "0" + hours : hours) + ":" + 
+            (minutes < 10 ? "0" + minutes : minutes) + ":" + 
+            (seconds < 10 ? "0" + seconds : seconds);
+    }, 1000);
+    {% endif %}
+</script>
 
 </body>
 </html>

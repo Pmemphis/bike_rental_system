@@ -1,60 +1,62 @@
-import csv
-from django.http import HttpResponse
 from django.contrib import admin
-from .models import Rental
+from django.utils.html import format_html
+from .models import Bike, Rental, UserProfile
 
-# 1. CUSTOM ACTION: EXPORT TO EXCEL (CSV)
-@admin.action(description='Export Selected to CSV (Excel)')
-def export_to_csv(modeladmin, request, queryset):
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="bike_rentals_report.csv"'
+@admin.register(Bike)
+class BikeAdmin(admin.ModelAdmin):
+    """Manage the physical bike fleet."""
+    list_display = ('bike_number', 'is_available', 'needs_maintenance', 'current_status_badge')
+    list_filter = ('is_available', 'needs_maintenance')
+    list_editable = ('needs_maintenance',)  # Toggle repairs directly from the list!
+    search_fields = ('bike_number',)
+
+    def current_status_badge(self, obj):
+        if obj.needs_maintenance:
+            return format_html('<span style="color: red; font-weight: bold;">🔧 REPAIR</span>')
+        if not obj.is_available:
+            return format_html('<span style="color: orange;">🚲 IN USE</span>')
+        return format_html('<span style="color: green;">✅ READY</span>')
     
-    writer = csv.writer(response)
-    # Header Row
-    writer.writerow(['Customer', 'National ID', 'Uni Reg No', 'Start Time', 'End Time', 'Total Cost', 'Paid Status'])
-    
-    # Data Rows
-    for obj in queryset:
-        writer.writerow([
-            obj.customer.username, 
-            obj.national_id, 
-            obj.uni_reg_number, 
-            obj.start_time.strftime('%Y-%m-%d %H:%M') if obj.start_time else "N/A", 
-            obj.end_time.strftime('%Y-%m-%d %H:%M') if obj.end_time else "N/A", 
-            obj.total_cost, 
-            "Paid" if obj.is_paid else "Pending"
-        ])
-    return response
+    current_status_badge.short_description = "Status"
 
-# 2. CUSTOM ACTION: MARK AS PAID
-@admin.action(description='Mark selected rides as PAID')
-def make_paid(modeladmin, request, queryset):
-    queryset.update(is_paid=True)
-
-# 3. ADMIN DASHBOARD CONFIGURATION
 @admin.register(Rental)
 class RentalAdmin(admin.ModelAdmin):
-    # What columns you see in the list view
-    list_display = ('customer', 'uni_reg_number', 'national_id', 'start_time', 'total_cost', 'is_active', 'is_paid')
-    
-    # Sidebar filters for quick sorting
+    """Monitor active rides and student identity verification."""
+    list_display = ('id_photo_thumbnail', 'customer', 'registration_number', 'bike', 'start_time', 'is_active', 'total_cost', 'is_paid')
     list_filter = ('is_active', 'is_paid', 'start_time')
+    search_fields = ('customer__username', 'registration_number', 'national_id')
+    readonly_fields = ('start_time', 'end_time', 'total_cost', 'id_photo_large')
     
-    # Search bar (Search by ID or Reg Number)
-    search_fields = ('national_id', 'uni_reg_number', 'customer__username')
-    
-    # Add our custom buttons to the "Actions" dropdown
-    actions = [make_paid, export_to_csv]
-    
-    # Make timestamps read-only so Admin doesn't accidentally change them
-    readonly_fields = ('start_time', 'end_time', 'total_cost')
-
-    # Organize the detail view when you click on a specific rental
+    # Organize the detail view into sections
     fieldsets = (
-        ('Customer Info', {
-            'fields': ('customer', 'national_id', 'uni_reg_number')
+        ('Student Identity', {
+            'fields': ('customer', 'national_id', 'registration_number', 'id_photo_large')
         }),
-        ('Timing & Billing', {
-            'fields': ('start_time', 'end_time', 'total_cost', 'is_active', 'is_paid')
+        ('Ride Details', {
+            'fields': ('bike', 'start_time', 'end_time', 'is_active')
+        }),
+        ('Billing', {
+            'fields': ('total_cost', 'is_paid')
         }),
     )
+
+    def id_photo_thumbnail(self, obj):
+        """Displays a small photo in the list view."""
+        if obj.student_photo:
+            return format_html('<img src="{}" style="width: 50px; height: 50px; border-radius: 5px; object-fit: cover;" />', obj.student_photo.url)
+        return "No Photo"
+    
+    id_photo_thumbnail.short_description = "Identity"
+
+    def id_photo_large(self, obj):
+        """Displays a large photo in the detail view."""
+        if obj.student_photo:
+            return format_html('<img src="{}" style="max-width: 300px; border-radius: 10px;" />', obj.student_photo.url)
+        return "No Photo Uploaded"
+
+    id_photo_large.short_description = "Captured Verification Photo"
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'phone_number', 'total_rides')
+    search_fields = ('user__username', 'phone_number')
